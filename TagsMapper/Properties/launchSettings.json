@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "TagsMapper": {
+      "commandName": "Project",
+      "commandLineArgs": "build"
+    }
+  }
+}
