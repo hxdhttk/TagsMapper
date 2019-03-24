@@ -86,4 +86,7 @@ type HttpWrapper(config: Config) =
         }
 
     interface IDisposable with
-        member __.Dispose() = httpClient.Dispose()
+        
+        member __.Dispose() = 
+            httpClient.Values |> Seq.iter (fun v -> v.Dispose())
+            httpClient.Dispose()

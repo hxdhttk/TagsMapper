@@ -1,5 +1,6 @@
 ﻿module TagsStorage
 
+open System
 open System.Collections.Generic
 open System.IO
 open System.Text.RegularExpressions
@@ -29,6 +30,16 @@ type TagsStorage = {
 let private flip (a, b) = (b, a)
 
 let private toFullTagString (tagClass, tag) = sprintf "%s%s" tagClass tag
+
+let rec private retryTask count tsk =
+    if count = 0 then
+        None
+    else
+        try
+            tsk |> Async.AwaitTask |> Async.RunSynchronously |> Some
+        with
+        | _ -> retryTask (count - 1) tsk
+        
 
 let build (config: Config) =
     
@@ -68,23 +79,32 @@ let build (config: Config) =
     let titleToTagsMap = Dictionary<string, HashSet<Tag>>()
 
     use wrapper = new HttpWrapper(config)
+    use random = new ThreadLocal<Random>(fun () -> Random())
+
     Parallel.ForEach(titles, parallelOptions, fun title ->
-        let tagsSearchResult = wrapper.GetTags title |> Async.AwaitTask |> Async.RunSynchronously
+        let waitInterval = 5000 + random.Value.Next(0, 15000)
+        Thread.Sleep(waitInterval)
+
+        let tagsSearchResult = retryTask 5 (wrapper.GetTags title)
         match tagsSearchResult with
-        | Some task ->
-            let rawTags = task |> Async.AwaitTask |> Async.RunSynchronously
-            let tags = rawTags |> Seq.map snd |> Seq.toArray
+        | Some (Some task) ->
+            let rawTagsOpt = retryTask 5 task
+            match rawTagsOpt with
+            | Some rawTags ->
+                let tags = rawTags |> Seq.map snd |> Seq.toArray
 
-            Monitor.Enter(titleToFullTagsMap)
-            Monitor.Enter(titleToTagsMap)
+                Monitor.Enter(titleToFullTagsMap)
+                Monitor.Enter(titleToTagsMap)
 
-            titleToFullTagsMap.Add(title, HashSet(rawTags))
-            titleToTagsMap.Add(title, HashSet(tags))
+                titleToFullTagsMap.Add(title, HashSet(rawTags))
+                titleToTagsMap.Add(title, HashSet(tags))
 
-            Monitor.Exit(titleToTagsMap)
-            Monitor.Exit(titleToFullTagsMap)
-
-        | None -> ()
+                Monitor.Exit(titleToTagsMap)
+                Monitor.Exit(titleToFullTagsMap)
+            
+            | None -> ()
+        
+        | _ -> ()
     ) |> ignore
 
     let fullTagToTitlesMap =
