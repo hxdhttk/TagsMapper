@@ -34,14 +34,11 @@ let build low high =
 [<EntryPoint>]
 let main argv =
     
-    if argv.Length <> 1 then 
-        ()
-    else
-        match parseOption argv with
-        | LoadArchivePaths -> loadArchivePaths()
-        | Build (low, high) -> build low high
-        | Update -> ()
-        | Search -> ()
-        | Unknown -> ()
+    match parseOption argv with
+    | LoadArchivePaths -> loadArchivePaths()
+    | Build (low, high) -> build low high
+    | Update -> ()
+    | Search -> ()
+    | Unknown -> ()
 
     0

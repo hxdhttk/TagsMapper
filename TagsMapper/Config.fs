@@ -7,6 +7,7 @@ open Newtonsoft.Json
 [<CLIMutable>]
 type Config = {
     LocalPath: string
+    Proxy: string
     SiteUrl: string
     Cookie: string
 }

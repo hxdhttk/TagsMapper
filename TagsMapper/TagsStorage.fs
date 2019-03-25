@@ -12,7 +12,7 @@ open Newtonsoft.Json
 open Config
 open HttpWrapper
 
-type FullTag = string * string
+type FullTag = string
 type Tag = string
 
 [<CLIMutable>]
@@ -27,16 +27,19 @@ type TagsStorage = {
     
     FullTagToTitlesMap: Dictionary<FullTag, HashSet<string>>
     TagToTitlesMap: Dictionary<Tag, HashSet<string>>
-}   
+}
 
-type IDictionary<'k, 'v> with
+type private IDictionary<'k, 'v> with
     member this.Append(other: IDictionary<'k, 'v>) =
         other
         |> Seq.iter (fun kv -> this.Add(kv.Key, kv.Value))
 
 let private flip (a, b) = (b, a)
 
-let private testPath path = Directory.Exists(path)
+let private testPath path = File.Exists(path)
+
+let private rawTagToFullTag (a, b) =
+    sprintf "%s%s" a b
 
 let private listTakeRange low high (lst: List<'a>) =
     if lst.Count < (high - low) then
@@ -116,7 +119,7 @@ let build low high (config: Config) =
     let titles = fileNameToTitlePairs |> Seq.map snd
 
     let parallelOptions = ParallelOptions()
-    parallelOptions.MaxDegreeOfParallelism <- 2
+    parallelOptions.MaxDegreeOfParallelism <- 1
 
     let titleToFullTagsMap = previousData.TitleToFullTagsMap
     let titleToTagsMap = previousData.TitleToTagsMap
@@ -128,24 +131,19 @@ let build low high (config: Config) =
         let waitInterval = 5000 + random.Value.Next(0, 15000)
         Thread.Sleep(waitInterval)
 
-        let tagsSearchResult = retryTask 5 (wrapper.GetTags title)
-        match tagsSearchResult with
-        | Some (Some task) ->
-            let rawTagsOpt = retryTask 5 task
-            match rawTagsOpt with
-            | Some rawTags ->
-                let tags = rawTags |> Seq.map snd |> Seq.toArray
+        let rawTagsOpt = retryTask 5 (wrapper.GetTags title)
+        match rawTagsOpt with
+        | Some (Some rawTags) ->
+            let tags = rawTags |> Seq.map snd |> Seq.toArray
 
-                Monitor.Enter(titleToFullTagsMap)
-                Monitor.Enter(titleToTagsMap)
+            Monitor.Enter(titleToFullTagsMap)
+            Monitor.Enter(titleToTagsMap)
 
-                titleToFullTagsMap.Add(title, HashSet(rawTags))
-                titleToTagsMap.Add(title, HashSet(tags))
+            titleToFullTagsMap.Add(title, HashSet(rawTags |> Seq.map rawTagToFullTag))
+            titleToTagsMap.Add(title, HashSet(tags))
 
-                Monitor.Exit(titleToTagsMap)
-                Monitor.Exit(titleToFullTagsMap)
-            
-            | None -> ()
+            Monitor.Exit(titleToTagsMap)
+            Monitor.Exit(titleToFullTagsMap)
         
         | _ -> ()
     ) |> ignore

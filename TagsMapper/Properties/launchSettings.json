@@ -2,7 +2,7 @@
   "profiles": {
     "TagsMapper": {
       "commandName": "Project",
-      "commandLineArgs": "load"
+      "commandLineArgs": "build 101 150"
     }
   }
 }
