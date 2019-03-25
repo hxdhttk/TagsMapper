@@ -38,6 +38,12 @@ let private flip (a, b) = (b, a)
 
 let private testPath path = Directory.Exists(path)
 
+let private listTakeRange low high (lst: List<'a>) =
+    if lst.Count < (high - low) then
+        seq { yield! lst }
+    else
+        lst |> Seq.skip low |> Seq.take (high - low)
+
 let rec private retryTask count tsk =
     if count = 0 then
         None
@@ -79,7 +85,7 @@ let build low high (config: Config) =
     
     let archivePaths = loadArchivePaths config;
 
-    let archives = archivePaths |> Seq.skip low |> Seq.take (high - low)
+    let archives = archivePaths |> listTakeRange low high
 
     let fileNames =
         archives
