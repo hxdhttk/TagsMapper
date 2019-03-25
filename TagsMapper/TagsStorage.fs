@@ -1,4 +1,4 @@
-﻿module TagsStorage
+module TagsStorage
 
 open System
 open System.Collections.Generic
@@ -6,6 +6,8 @@ open System.IO
 open System.Text.RegularExpressions
 open System.Threading
 open System.Threading.Tasks
+
+open Newtonsoft.Json
 
 open Config
 open HttpWrapper
@@ -15,7 +17,7 @@ type Tag = string
 
 [<CLIMutable>]
 type TagsStorage = {
-    ArchivePaths: HashSet<string>
+    ArchivePaths: List<string>
     
     FileNameToTitleMap: Dictionary<string, string>
     TitleToFileNameMap: Dictionary<string, string>
@@ -25,11 +27,16 @@ type TagsStorage = {
     
     FullTagToTitlesMap: Dictionary<FullTag, HashSet<string>>
     TagToTitlesMap: Dictionary<Tag, HashSet<string>>
-}
+}   
+
+type IDictionary<'k, 'v> with
+    member this.Append(other: IDictionary<'k, 'v>) =
+        other
+        |> Seq.iter (fun kv -> this.Add(kv.Key, kv.Value))
 
 let private flip (a, b) = (b, a)
 
-let private toFullTagString (tagClass, tag) = sprintf "%s%s" tagClass tag
+let private testPath path = Directory.Exists(path)
 
 let rec private retryTask count tsk =
     if count = 0 then
@@ -39,19 +46,44 @@ let rec private retryTask count tsk =
             tsk |> Async.AwaitTask |> Async.RunSynchronously |> Some
         with
         | _ -> retryTask (count - 1) tsk
-        
 
-let build (config: Config) =
+let loadArchivePaths (config: Config) =
+    let dataPath = "ArchivePaths.json"
+    if testPath dataPath then
+        dataPath |> File.ReadAllText |> JsonConvert.DeserializeObject<List<string>>
+    else
+        let localPath = config.LocalPath
+        let archives = Directory.EnumerateDirectories(localPath, "*.cbz", SearchOption.AllDirectories) |> ResizeArray
+        File.WriteAllText(dataPath, JsonConvert.SerializeObject(archives))
+        archives
+
+let loadPreviousData () =
+    let dataPath = "Data.json"
+    if testPath dataPath then
+        dataPath |> File.ReadAllText |> JsonConvert.DeserializeObject<TagsStorage>
+    else
+        {
+            ArchivePaths = List<string>()
     
-    let localPath = config.LocalPath
+            FileNameToTitleMap = Dictionary<string, string>()
+            TitleToFileNameMap = Dictionary<string, string>()
+    
+            TitleToFullTagsMap = Dictionary<string, HashSet<FullTag>>()
+            TitleToTagsMap = Dictionary<string, HashSet<Tag>>()
+    
+            FullTagToTitlesMap = Dictionary<FullTag, HashSet<string>>()
+            TagToTitlesMap = Dictionary<Tag, HashSet<string>>()
+        }
 
-    let archives = Directory.EnumerateFiles(localPath, "*.cbz", SearchOption.AllDirectories) |> Seq.toArray
+let build low high (config: Config) =
+    
+    let archivePaths = loadArchivePaths config;
 
-    let archivePaths = HashSet<string>(archives);
+    let archives = archivePaths |> Seq.skip low |> Seq.take (high - low)
 
     let fileNames =
         archives
-        |> Array.map (fun archive -> 
+        |> Seq.map (fun archive -> 
             let fileInfo = FileInfo(archive)
             fileInfo.Name)
 
@@ -59,7 +91,7 @@ let build (config: Config) =
 
     let fileNameToTitlePairs =
         fileNames
-        |> Array.map (fun fileName ->
+        |> Seq.map (fun fileName ->
             let regexMatch = fileNameRegex.Match fileName
             fileName, regexMatch.Groups.[1].Value)
 
@@ -67,16 +99,21 @@ let build (config: Config) =
         fileNameToTitlePairs
         |> Seq.map flip
 
-    let fileNameToTitleMap = Dictionary<string, string>(fileNameToTitlePairs |> dict)
-    let titleToFileNameMap = Dictionary<string, string>(titleToFileNamePairs |> dict)
+    let previousData = loadPreviousData()
 
-    let titles = fileNameToTitlePairs |> Array.map snd
+    let fileNameToTitleMap = previousData.FileNameToTitleMap
+    let titleToFileNameMap = previousData.TitleToFileNameMap
+
+    fileNameToTitleMap.Append(fileNameToTitlePairs |> dict)
+    titleToFileNameMap.Append(titleToFileNamePairs |> dict)
+
+    let titles = fileNameToTitlePairs |> Seq.map snd
 
     let parallelOptions = ParallelOptions()
     parallelOptions.MaxDegreeOfParallelism <- 2
 
-    let titleToFullTagsMap = Dictionary<string, HashSet<FullTag>>()
-    let titleToTagsMap = Dictionary<string, HashSet<Tag>>()
+    let titleToFullTagsMap = previousData.TitleToFullTagsMap
+    let titleToTagsMap = previousData.TitleToTagsMap
 
     use wrapper = new HttpWrapper(config)
     use random = new ThreadLocal<Random>(fun () -> Random())

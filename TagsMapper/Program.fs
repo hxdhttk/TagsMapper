@@ -5,21 +5,28 @@ open System.IO
 open Newtonsoft.Json
 
 type Operation =
-    | Build
+    | LoadArchivePaths
+    | Build of int * int
     | Update
     | Search
     | Unknown
 
 let private parseOption arg =
     match arg with
-    | "build" -> Build
-    | "update" -> Update
-    | "search" -> Search
+    | [| "load" |] -> LoadArchivePaths
+    | [| "build"; low; high |] -> Build (int low, int high)
+    | [| "update" |] -> Update
+    | [| "search" |] -> Search
     | _ -> Unknown
 
-let build () =
+let loadArchivePaths () =
+    Config.loadConfig()
+    |> TagsStorage.loadArchivePaths
+    |> Seq.iter (printfn "%s")
+
+let build low high =
     Config.loadConfig ()
-    |> TagsStorage.build
+    |> TagsStorage.build low high
     |> JsonConvert.SerializeObject
     |> fun data -> File.WriteAllText("Data.json", data)
 
@@ -29,8 +36,9 @@ let main argv =
     if argv.Length <> 1 then 
         ()
     else
-        match parseOption argv.[0] with
-        | Build -> build()
+        match parseOption argv with
+        | LoadArchivePaths -> loadArchivePaths()
+        | Build (low, high) -> build low high
         | Update -> ()
         | Search -> ()
         | Unknown -> ()
