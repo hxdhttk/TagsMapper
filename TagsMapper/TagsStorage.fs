@@ -42,7 +42,7 @@ let private listTakeRange low high (lst: List<'a>) =
     if lst.Count < (high - low) then
         seq { yield! lst }
     else
-        lst |> Seq.skip low |> Seq.take (high - low)
+        lst |> Seq.skip low |> Seq.take (high - low + 1)
 
 let rec private retryTask count tsk =
     if count = 0 then
