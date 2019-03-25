@@ -59,7 +59,7 @@ let loadArchivePaths (config: Config) =
         dataPath |> File.ReadAllText |> JsonConvert.DeserializeObject<List<string>>
     else
         let localPath = config.LocalPath
-        let archives = Directory.EnumerateDirectories(localPath, "*.cbz", SearchOption.AllDirectories) |> ResizeArray
+        let archives = Directory.EnumerateFiles(localPath, "*.cbz", SearchOption.AllDirectories) |> ResizeArray
         File.WriteAllText(dataPath, JsonConvert.SerializeObject(archives))
         archives
 

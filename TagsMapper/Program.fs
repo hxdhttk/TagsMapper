@@ -29,6 +29,7 @@ let build low high =
     |> TagsStorage.build low high
     |> JsonConvert.SerializeObject
     |> fun data -> File.WriteAllText("Data.json", data)
+    printfn "Current index: %d" high
 
 [<EntryPoint>]
 let main argv =
