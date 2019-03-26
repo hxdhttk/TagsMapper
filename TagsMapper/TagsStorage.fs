@@ -94,7 +94,7 @@ let build low high (config: Config) =
     
     let archivePaths = loadArchivePaths config;
 
-    let archives = archivePaths |> listTakeRange low high |> Seq.toArray
+    let archives = archivePaths |> listTakeRange low high
 
     let fileNames =
         archives
@@ -116,7 +116,7 @@ let build low high (config: Config) =
                 let title = regexMatch.Groups.[1].Value
                 if not (titleToFileNameMap.ContainsKey(title)) then
                     yield fileName, title
-        }
+        } |> Seq.cache
 
     let titleToFileNamePairs =
         fileNameToTitlePairs
