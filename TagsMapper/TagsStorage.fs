@@ -34,6 +34,12 @@ type private IDictionary<'k, 'v> with
         other
         |> Seq.iter (fun kv -> this.Add(kv.Key, kv.Value))
 
+    member this.AddOrSet(key, value) =
+        if this.ContainsKey(key) then
+            this.[key] <- value
+        else
+            this.Add(key, value)
+
 let private flip (a, b) = (b, a)
 
 let private testPath path = File.Exists(path)
@@ -88,7 +94,7 @@ let build low high (config: Config) =
     
     let archivePaths = loadArchivePaths config;
 
-    let archives = archivePaths |> listTakeRange low high
+    let archives = archivePaths |> listTakeRange low high |> Seq.toArray
 
     let fileNames =
         archives
@@ -96,22 +102,25 @@ let build low high (config: Config) =
             let fileInfo = FileInfo(archive)
             fileInfo.Name)
 
-    let fileNameRegex = @"\[.+\] (.+).cbz" |> Regex
-
-    let fileNameToTitlePairs =
-        fileNames
-        |> Seq.map (fun fileName ->
-            let regexMatch = fileNameRegex.Match fileName
-            fileName, regexMatch.Groups.[1].Value)
-
-    let titleToFileNamePairs =
-        fileNameToTitlePairs
-        |> Seq.map flip
+    let fileNameRegex = @"\[.+\] (.+).cbz" |> Regex    
 
     let previousData = loadPreviousData()
 
     let fileNameToTitleMap = previousData.FileNameToTitleMap
     let titleToFileNameMap = previousData.TitleToFileNameMap
+
+    let fileNameToTitlePairs =
+        seq {
+            for fileName in fileNames do
+                let regexMatch = fileNameRegex.Match fileName
+                let title = regexMatch.Groups.[1].Value
+                if not (titleToFileNameMap.ContainsKey(title)) then
+                    yield fileName, title
+        }
+
+    let titleToFileNamePairs =
+        fileNameToTitlePairs
+        |> Seq.map flip
 
     fileNameToTitleMap.Append(fileNameToTitlePairs |> dict)
     titleToFileNameMap.Append(titleToFileNamePairs |> dict)
@@ -139,8 +148,8 @@ let build low high (config: Config) =
             Monitor.Enter(titleToFullTagsMap)
             Monitor.Enter(titleToTagsMap)
 
-            titleToFullTagsMap.Add(title, HashSet(rawTags |> Seq.map rawTagToFullTag))
-            titleToTagsMap.Add(title, HashSet(tags))
+            titleToFullTagsMap.AddOrSet(title, HashSet(rawTags |> Seq.map rawTagToFullTag))
+            titleToTagsMap.AddOrSet(title, HashSet(tags))
 
             Monitor.Exit(titleToTagsMap)
             Monitor.Exit(titleToFullTagsMap)
