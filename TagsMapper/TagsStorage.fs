@@ -48,8 +48,10 @@ let private rawTagToFullTag (a, b) =
     sprintf "%s%s" a b
 
 let private listTakeRange low high (lst: List<'a>) =
-    if lst.Count < (high - low) then
-        seq { yield! lst }
+    if lst.Count - 1 < low then
+        Seq.empty
+    elif (lst.Count - low) < (high - low + 1) then
+        lst |> Seq.skip low
     else
         lst |> Seq.skip low |> Seq.take (high - low + 1)
 
