@@ -46,21 +46,29 @@ let build low high =
     |> fun data -> File.WriteAllText("Data.json", data)
     printfn "Current index: %d" high
 
+let update () =
+    Config.loadConfig()
+    |> TagsStorage.update
+    |> JsonConvert.SerializeObject
+    |> fun data -> File.WriteAllText("Data.json", data)
+
 let searchByTitle term =
     TagsStorage.searchByTitle term
-    |> printfn "%A"
+    |> fun res -> JsonConvert.SerializeObject(res, Formatting.Indented)
+    |> printfn "%s"
 
 let searchByTag term =
     TagsStorage.searchByTag term
-    |> printfn "%A"
+    |> fun res -> JsonConvert.SerializeObject(res, Formatting.Indented)
+    |> printfn "%s"
 
 [<EntryPoint>]
 let main argv =
     
     match parseOption argv with
-    | LoadArchivePaths -> loadArchivePaths()
+    | LoadArchivePaths -> loadArchivePaths ()
     | Build (low, high) -> build low high
-    | Update -> ()
+    | Update -> update ()
     | Search (Title, term) -> searchByTitle term
     | Search (Tag, term) -> searchByTag term
     | _ -> ()
