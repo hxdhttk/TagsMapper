@@ -42,8 +42,6 @@ let loadArchivePaths () =
 let build low high =
     Config.loadConfig ()
     |> TagsStorage.build low high
-    |> JsonConvert.SerializeObject
-    |> fun data -> File.WriteAllText("Data.json", data)
     printfn "Current index: %d" high
 
 let update () =

@@ -193,17 +193,18 @@ let build low high (config: Config) =
         FullTagToTitlesMap = fullTagToTitlesMap
         TagToTitlesMap = tagToTitlesMap
     }
+    |> JsonConvert.SerializeObject
+    |> fun data -> File.WriteAllText("Data.json", data)
 
 let update (config: Config) =
     let localPath = config.LocalPath
     let dataPath = "ArchivePaths.json"
-    let previousData = loadPreviousData()
-    if testPath localPath |> not then previousData
+    if testPath localPath |> not then ()
     else
         let newArchivePaths = Directory.EnumerateFiles(localPath, "*.cbz", SearchOption.AllDirectories) |> HashSet
         let oldArchivePaths = dataPath |> File.ReadAllText |> JsonConvert.DeserializeObject<List<string>>
         newArchivePaths.ExceptWith(oldArchivePaths)
-        if newArchivePaths.Count = 0 then previousData
+        if newArchivePaths.Count = 0 then ()
         else
             let initialCount = oldArchivePaths.Count
             oldArchivePaths.AddRange(newArchivePaths)
