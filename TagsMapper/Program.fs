@@ -47,13 +47,11 @@ let build low high =
     printfn "Current index: %d" high
 
 let searchByTitle term =
-    Config.loadConfig()
-    |> TagsStorage.searchByTitle term
+    TagsStorage.searchByTitle term
     |> printfn "%A"
 
 let searchByTag term =
-    Config.loadConfig()
-    |> TagsStorage.searchByTag term
+    TagsStorage.searchByTag term
     |> printfn "%A"
 
 [<EntryPoint>]

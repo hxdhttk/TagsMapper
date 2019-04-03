@@ -194,12 +194,22 @@ let build low high (config: Config) =
         TagToTitlesMap = tagToTitlesMap
     }
 
-let searchByTitle term (config: Config) =
+let searchByTitle term =
+    let savedData = loadPreviousData()
+    let titleToTagsMap = savedData.TitleToTagsMap
     seq {
-        yield "example"
+        for pair in titleToTagsMap do
+            let title = pair.Key
+            if title.Contains(term: string) then
+                yield pair
     }
 
-let searchByTag term (config: Config) =
+let searchByTag term =
+    let savedData = loadPreviousData()
+    let tagToTitlesMap = savedData.TagToTitlesMap
     seq {
-        yield "example"
+        for pair in tagToTitlesMap do
+            let tag = pair.Key
+            if tag.Contains(term: string) then
+                yield pair
     }
