@@ -39,15 +39,17 @@ type HttpWrapper(config: Config) =
 
         request
 
-    let httpClient = new ThreadLocal<HttpClient>(
-        (fun () ->
-            if isProxyValid then
-                let handler = new HttpClientHandler()
-                handler.Proxy <- WebProxy(proxy)
-                handler.UseProxy <- true
-                new HttpClient(handler)
-            else
-                new HttpClient()), true)
+    let generateHttpClient () =
+        if isProxyValid then
+            let handler = new HttpClientHandler()
+            handler.Proxy <- WebProxy(proxy)
+            handler.UseProxy <- true
+            new HttpClient(handler)
+        else
+            new HttpClient()
+        
+
+    let httpClient = new ThreadLocal<HttpClient>(Func<HttpClient>(generateHttpClient), true)
 
     let getSearchResultPage title =
         task {

@@ -8,15 +8,30 @@ type Operation =
     | LoadArchivePaths
     | Build of int * int
     | Update
-    | Search
+    | Search of SearchMode * string 
     | Unknown
+
+and SearchMode =
+    | Title
+    | Tag
+    | BadMode
+
+let private parseSearchMode searchMode =
+    match searchMode with
+    | "title" -> Title
+    | "tag" -> Tag
+    | _ -> BadMode
 
 let private parseOption arg =
     match arg with
     | [| "load" |] -> LoadArchivePaths
     | [| "build"; low; high |] -> Build (int low, int high)
     | [| "update" |] -> Update
-    | [| "search" |] -> Search
+    | [| "search"; searchMode; term |] ->
+        match parseSearchMode searchMode with
+        | Title -> Search (Title, term)
+        | Tag -> Search (Tag, term)
+        | BadMode -> Search (BadMode, term)
     | _ -> Unknown
 
 let loadArchivePaths () =
@@ -31,6 +46,16 @@ let build low high =
     |> fun data -> File.WriteAllText("Data.json", data)
     printfn "Current index: %d" high
 
+let searchByTitle term =
+    Config.loadConfig()
+    |> TagsStorage.searchByTitle term
+    |> printfn "%A"
+
+let searchByTag term =
+    Config.loadConfig()
+    |> TagsStorage.searchByTag term
+    |> printfn "%A"
+
 [<EntryPoint>]
 let main argv =
     
@@ -38,7 +63,8 @@ let main argv =
     | LoadArchivePaths -> loadArchivePaths()
     | Build (low, high) -> build low high
     | Update -> ()
-    | Search -> ()
-    | Unknown -> ()
+    | Search (Title, term) -> searchByTitle term
+    | Search (Tag, term) -> searchByTag term
+    | _ -> ()
 
     0

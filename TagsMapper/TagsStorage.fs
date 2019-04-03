@@ -193,3 +193,13 @@ let build low high (config: Config) =
         FullTagToTitlesMap = fullTagToTitlesMap
         TagToTitlesMap = tagToTitlesMap
     }
+
+let searchByTitle term (config: Config) =
+    seq {
+        yield "example"
+    }
+
+let searchByTag term (config: Config) =
+    seq {
+        yield "example"
+    }
