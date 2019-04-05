@@ -138,6 +138,8 @@ let build low high (config: Config) =
     use wrapper = new HttpWrapper(config)
     use random = new ThreadLocal<Random>(fun () -> Random())
 
+    let locker = obj()
+
     Parallel.ForEach(titles, parallelOptions, fun title ->
         let waitInterval = 5000 + random.Value.Next(0, 15000)
         Thread.Sleep(waitInterval)
@@ -147,14 +149,9 @@ let build low high (config: Config) =
         | Some (Some rawTags) ->
             let tags = rawTags |> Seq.map snd |> Seq.toArray
 
-            Monitor.Enter(titleToFullTagsMap)
-            Monitor.Enter(titleToTagsMap)
-
-            titleToFullTagsMap.AddOrSet(title, HashSet(rawTags |> Seq.map rawTagToFullTag))
-            titleToTagsMap.AddOrSet(title, HashSet(tags))
-
-            Monitor.Exit(titleToTagsMap)
-            Monitor.Exit(titleToFullTagsMap)
+            lock locker (fun () ->
+                titleToFullTagsMap.AddOrSet(title, HashSet(rawTags |> Seq.map rawTagToFullTag))
+                titleToTagsMap.AddOrSet(title, HashSet(tags)))
         
         | _ -> ()
     ) |> ignore
