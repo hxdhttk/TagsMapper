@@ -130,7 +130,7 @@ let build low high (config: Config) =
     let titles = fileNameToTitlePairs |> Seq.map snd
 
     let parallelOptions = ParallelOptions()
-    parallelOptions.MaxDegreeOfParallelism <- 1
+    parallelOptions.MaxDegreeOfParallelism <- 5
 
     let titleToFullTagsMap = previousData.TitleToFullTagsMap
     let titleToTagsMap = previousData.TitleToTagsMap
